@@ -1,5 +1,7 @@
 # Kamero — 프린터 부품 인식 웹앱
 
+**한국어** | [English](README.en.md)
+
 사진을 업로드하면 기존 YOLO 모델이 프린터 부품을 탐지하고, SQLite에서 부품 번호와 설명을 찾아 화면에 표시하는 캡스톤 프로젝트입니다.
 
 [PV-ML-HPPK](https://github.com/snj0x03/PV-ML-HPPK)를 기반으로 제공받은 Kamero 프런트엔드를 연결했습니다. 현재는 **로컬 실행용 프로토타입**입니다.
