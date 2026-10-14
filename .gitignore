@@ -46,6 +46,7 @@ fastapi-venv/
 
 # App runtime data
 app/data/
+Ultralytics/
 
 # IDE
 .vscode/

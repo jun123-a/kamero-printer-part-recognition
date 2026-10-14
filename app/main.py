@@ -3,12 +3,18 @@ import io
 import base64
 import uuid
 from datetime import datetime
-from fastapi import FastAPI, File, UploadFile, Depends, HTTPException
+from fastapi import FastAPI, File, UploadFile, Depends, HTTPException, Form
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
-from PIL import Image
+from PIL import Image, ImageOps, UnidentifiedImageError
+from threading import Lock
 
+# Keep model runtime settings inside this project, alongside its runtime data.
+os.environ.setdefault("YOLO_CONFIG_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "ultralytics"))
+os.makedirs(os.environ["YOLO_CONFIG_DIR"], exist_ok=True)
+os.environ.setdefault("MPLCONFIGDIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "matplotlib"))
+os.environ.setdefault("YOLO_AUTOINSTALL", "false")
 from ultralytics import YOLO
 from database import (
         SessionLocal, DetectionLog, ClassificationLog, Part,
@@ -26,6 +32,9 @@ MODEL_CLS_PATH = os.path.join(PROJECT_ROOT, "models", "best_v26_cls.pt")
 
 model_det = YOLO(MODEL_DET_PATH)
 model_cls = YOLO(MODEL_CLS_PATH)
+INFERENCE_LOCK = Lock()
+PRINTER_SCOPE = "All parts (printer compatibility unverified)"
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
 IMAGES_DIR = os.path.join(BASE_DIR, "data", "detection_images")
 os.makedirs(IMAGES_DIR, exist_ok=True)
@@ -51,7 +60,26 @@ def get_db():
 
 @app.on_event("startup")
 async def startup():
-    init_db()
+    from seed_db import seed
+    seed()
+
+
+@app.get("/api/health")
+def health():
+    return {"status": "ok", "model_version": os.path.basename(MODEL_DET_PATH)}
+
+
+@app.get("/api/models")
+def printer_models():
+    # No verified printer-to-part compatibility mapping is supplied by this project.
+    return {"models": [PRINTER_SCOPE], "filtering_supported": False}
+
+
+@app.get("/api/parts")
+def catalogue(db: Session = Depends(get_db)):
+    return {"parts": [{"class_id": p.class_id, "part_number": p.serial_number,
+                       "description": p.part_desc}
+                      for p in db.query(Part).order_by(Part.class_id).all()]}
 
 
 @app.get("/")
@@ -60,18 +88,31 @@ async def main_page():
 
 
 @app.post("/detect")
-async def detect(file: UploadFile = File(...), db: Session = Depends(get_db)):
+def detect(file: UploadFile = File(...), printer_model: str = Form(PRINTER_SCOPE), db: Session = Depends(get_db)):
     print(f"[Predict] request: {file.filename}")
 
     try:
-        image_bytes = await file.read()
-        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        if printer_model != PRINTER_SCOPE:
+            raise HTTPException(422, "This server supports all-parts recognition only; printer compatibility is not verified.")
+        image_bytes = file.file.read(MAX_UPLOAD_BYTES + 1)
+        if len(image_bytes) > MAX_UPLOAD_BYTES:
+            raise HTTPException(413, "Maximum upload size is 10 MB.")
+        try:
+            with Image.open(io.BytesIO(image_bytes)) as source:
+                if source.format not in {"JPEG", "PNG"}:
+                    raise HTTPException(415, "Please upload a JPG or PNG image.")
+                if source.width * source.height > 40_000_000:
+                    raise HTTPException(413, "Image exceeds 40 megapixels.")
+                image = ImageOps.exif_transpose(source).convert("RGB")
+        except (UnidentifiedImageError, OSError, Image.DecompressionBombError):
+            raise HTTPException(415, "The uploaded file is not a readable JPG or PNG image.")
 
         buffered = io.BytesIO()
         image.save(buffered, format="JPEG")
         img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
 
-        results = model_det(image, conf=0.05)
+        with INFERENCE_LOCK:
+            results = model_det(image, conf=0.05, verbose=False)
 
         plotted_bgr = results[0].plot()
         plotted_rgb = Image.fromarray(plotted_bgr[..., ::-1])
@@ -93,14 +134,21 @@ async def detect(file: UploadFile = File(...), db: Session = Depends(get_db)):
         srl = []
         msg = []
         send = []
+        parts = []
 
         # Database Commit & Message
         for i in range(n):
             qry = db.query(Part).filter(Part.class_id == classes[i]).first()
-            srl.append(qry.serial_number)
-            msg.append(qry.part_desc)
+            number = qry.serial_number if qry else str(result.names.get(int(classes[i]), classes[i]))
+            description = qry.part_desc if qry else "Unmapped model class; please verify."
+            srl.append(number)
+            msg.append(description)
+            parts.append({"class_name": str(result.names.get(int(classes[i]), classes[i])),
+                          "class_id": int(classes[i]), "part_number": number,
+                          "description": description, "confidence": conf[i],
+                          "bbox_norm": bboxes[i], "compatibility": []})
             send.append({
-                "class": qry.serial_number,
+                "class": number,
                 "confidence": conf[i],
                 "bbox": bboxes[i]
             })
@@ -113,9 +161,15 @@ async def detect(file: UploadFile = File(...), db: Session = Depends(get_db)):
         db.commit()
         db.refresh(log)
 
-        return {"image": img_str, "conf": conf, "cls": srl, "desc": msg}
+        return {"image": img_str, "conf": conf, "cls": srl, "desc": msg,
+                "parts": parts, "bboxes": bboxes, "bbox_format": "cxcywh_normalized",
+                "record_id": log.id, "model_version": os.path.basename(MODEL_DET_PATH),
+                "printer_model": printer_model}
 
+    except HTTPException:
+        raise
     except Exception as e:
+        db.rollback()
         print(f"[predict] error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Processing error: {str(e)}")
 

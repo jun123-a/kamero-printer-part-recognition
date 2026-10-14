@@ -1,300 +1,160 @@
-# PV-ML-HPPK
+# Kamero — 프린터 부품 인식 웹앱
 
-HP LaserJet printer part identification system using YOLOv11 object detection. Upload a photo of a printer part; the system detects it, draws a bounding box, and returns the part name, serial number, and confidence score.
+사진을 업로드하면 기존 YOLO 모델이 프린터 부품을 탐지하고, SQLite에서 부품 번호와 설명을 찾아 화면에 표시하는 캡스톤 프로젝트입니다.
 
+[PV-ML-HPPK](https://github.com/snj0x03/PV-ML-HPPK)를 기반으로 제공받은 Kamero 프런트엔드를 연결했습니다. 현재는 **로컬 실행용 프로토타입**입니다.
 
-## Table of Contents
+## 주요 기능
 
-- [Overview](#overview)
-- [Project Structure](#project-structure)
-- [Requirements](#requirements)
-- [Quick Start (Docker)](#quick-start-docker)
-- [Local Development Setup](#local-development-setup)
-- [API Reference](#api-reference)
-- [Database](#database)
-- [Model](#model)
-- [Part Classes](#part-classes)
+- JPG/PNG 업로드 및 실제 YOLO 추론
+- 탐지 박스와 부품 목록의 선택 연동, 확대·축소
+- 신뢰도 60% 미만 결과에 경고 표시
+- 서버 DB에서 40개 부품 카탈로그 조회 및 검색
+- 결과 이미지, JSON, CSV를 ZIP으로 다운로드
+- SQLite에 인식 결과와 결과 이미지 경로 저장
+- 브라우저에 최근 인식 기록 최대 20개 저장
+- 잘못된 인식에 대한 수정 의견을 다운로드 JSON에 포함
 
+## 동작 구조
 
-## Overview
-
-The system is built around three components:
-
-1. **YOLO models** (`models/*.pt`) — trained to detect and classify 40 HP LaserJet printer part classes from images.
-2. **FastAPI backend** (`app/main.py`) — receives image uploads, runs inference, annotates the image with bounding boxes, logs results to the database, and returns structured JSON.
-3. **SQLite database** (`app/data/local.db`) — maps YOLO class IDs to real part names and serial numbers. Auto-created on first run.
-
-
-## Project Structure
-
-```
-PV-ML-HPPK/
-├── app/
-│   ├── main.py          # FastAPI app — /predict, /feedback, /admin/clear-db
-│   ├── database.py      # SQLAlchemy ORM models and DB engine
-│   ├── seed_db.py       # Seeds 40 HP parts into DB on startup
-│   ├── Dockerfile
-│   └── static/
-│       ├── index.html   # Frontend UI
-│       ├── style.css
-│       ├── hp_logo.png
-│       └── woosong_logo.png
-├── models/
-│   └── *.pt             # YOLO weights 
-├── notebooks/
-│   └── *.ipynb          # YOLO jupyter notebooks 
-├── scripts/
-│   └── *.py             # Scripts used for dataset preparation 
-├── docker-compose.yml
-├── .dockerignore
-├── requirements.txt
-└── readme.md
+```text
+브라우저: HTML / CSS / JavaScript
+    │ POST /detect (원본 사진)
+    ▼
+FastAPI → YOLO 탐지 모델 → 클래스 ID
+    │                         │
+    │                  SQLite 부품 정보 조회
+    ▼
+부품 번호 + 설명 + 신뢰도 + 박스 좌표 + 기록 ID
+    │
+    ▼
+화면에서 박스·목록 표시 및 결과 다운로드
 ```
 
-> `app/data/local.db` and `app/data/detection_images/` are created automatically on first run and are not tracked in git. Both are volume-mounted in Docker — data persists across container restarts.
+미리보기는 긴 변 최대 1,280픽셀로 줄이지만 서버에는 원본 파일을 전송합니다. 서버는 EXIF 회전을 적용하고 JPG/PNG, 최대 10 MB, 최대 4천만 픽셀을 검사합니다.
 
+## 빠른 시작 — Windows
 
-## Requirements
+이 프로젝트에서 검증한 환경은 **Python 3.13 / Windows**입니다. GPU 없이 CPU로도 실행할 수 있으며 처리 시간은 장비에 따라 다릅니다.
 
-- Python 3.10+
+저장소를 다운로드하거나 복제한 뒤 프로젝트 폴더에서 실행합니다.
 
-Key packages:
+```powershell
+py -3.13 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\start-kamero.cmd
+```
 
-| Package | Purpose |
+브라우저에서 **http://127.0.0.1:8000** 을 엽니다. HTML 파일을 직접 더블클릭하지 않습니다.
+
+실행 파일은 현재 폴더의 가상환경을 사용합니다. 서버 창에서 Ctrl+C를 누르면 종료됩니다. 최초 시작 시 DB와 부품 정보가 자동 생성됩니다.
+
+직접 실행하려면:
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn main:app --app-dir app --host 127.0.0.1 --port 8000
+```
+
+서버 시작 시 다음 두 모델 파일이 필요합니다. 기존 저장소에 포함된 파일을 유지했습니다.
+
+- `models/best_v26_det.pt`: 현재 화면에서 사용하는 탐지 모델
+- `models/best_v26_cls.pt`: 기존 `/classify` API에서 사용하는 분류 모델
+
+## 프로젝트 구조
+
+```text
+app/
+  main.py                 # FastAPI, 모델 실행, DB 조회, 결과 저장
+  database.py             # SQLite / SQLAlchemy 테이블
+  seed_db.py              # 기존 40개 부품 등록
+  test_integration.py     # API 통합 테스트
+  static/
+    index.html            # 화면 구조
+    kamero.css            # 화면 디자인
+    kamero.js             # 업로드, API 호출, 박스 선택, 내보내기
+    hp_logo.png
+    woosong_logo.png
+  data/                   # 자동 생성되는 DB·이미지·설정 (Git 제외)
+models/                   # 기존 학습 모델
+notebooks/                # 기존 학습 노트북
+scripts/                  # 기존 데이터 처리 스크립트
+requirements.txt          # 실행 패키지
+requirements-dev.txt      # 테스트 추가 패키지
+start-kamero.cmd           # Windows 실행 파일
+연결설명.md                # 연결 구현 상세 설명
+```
+
+## API
+
+| 경로 | 역할 |
 |---|---|
-| `ultralytics` | YOLO model inference |
-| `fastapi` | Web framework |
-| `uvicorn` | ASGI server |
-| `sqlalchemy` | ORM / SQLite |
-| `pillow` | Image processing |
+| `GET /` | 프런트엔드 제공 |
+| `GET /api/health` | 서버 상태와 탐지 모델 파일명 |
+| `GET /api/models` | 현재 지원하는 인식 범위 |
+| `GET /api/parts` | DB 부품 카탈로그 |
+| `POST /detect` | 사진 탐지 및 기록 저장 |
+| `POST /classify` | 기존 전체 이미지 분류 API; 현재 화면에서는 미사용 |
+| `DELETE /admin/clear-db` | 기존 인식·분류 기록과 결과 이미지 삭제; 부품 정보는 유지 |
 
+`/detect`는 multipart 형식의 `file`과 선택적 `printer_model`을 받습니다. 현재 인식 범위는 `All parts (printer compatibility unverified)` 하나이며, 프린터별 필터는 없습니다.
 
-## Quick Start (Docker)
-
-The recommended way to run the service. Requires Docker and Docker Compose.
-
-**1. Place the model file**
-
-```
-models/*.pt
-```
-
-**2. Start the service**
-
-```bash
-docker compose up --build
-```
-
-On startup, the container automatically:
-- Seeds the database with 40 HP part entries
-- Starts the web server
-
-**3. Open the app**
-
-```
-http://localhost:8000
-```
-
-To stop:
-
-```bash
-docker compose stop 
-```
-
-## Local Development Setup
-
-**1. Clone and enter the repo**
-
-```bash
-git clone <repo-url>
-cd PV-ML-HPPK
-```
-
-**2. Create and activate a virtual environment**
-
-```bash
-python -m venv venv
-# Windows
-venv\Scripts\activate
-# Linux / macOS
-source venv/bin/activate
-```
-
-**3. Install dependencies**
-
-```bash
-pip install -r requirements.txt
-```
-
-**4. Place the model file**
-
-```
-models/*.pt
-```
-
-**5. Initialize the database**
-
-```bash
-cd app
-python seed_db.py
-```
-
-This creates `/data/local.db` and inserts 40 HP part entries. Safe to re-run — existing entries are skipped.
-
-**6. Start the server**
-
-```bash
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
-
-Open `http://localhost:8000`.
-
-
-## API Reference
-
-### `GET /`
-
-Returns the frontend HTML page.
-
-
-### `POST /detect`
-
-Run inference on an uploaded image.
-
-**Request** — `multipart/form-data`
-
-| Field | Type | Description |
-|---|---|---|
-| `file` | file | Image file (JPEG, PNG, WEBP) |
-
-**Response**
+주요 응답 예시 (실제 측정값이 아닌 설명용):
 
 ```json
 {
-  "image": "<base64-encoded JPEG with bounding boxes>"
-  "conf": "[0.98, 0.45]"
-  "cls": "[5RC00-67001, JC93-01467A]"
-  "desc": "[HP LaserJet ADF Maintenance Kit, Right door switch assembly]"
+  "record_id": 1,
+  "model_version": "best_v26_det.pt",
+  "bbox_format": "cxcywh_normalized",
+  "parts": [{
+    "class_id": 0,
+    "class_name": "0",
+    "part_number": "5PN77-67001",
+    "description": "SVC_HP LaserJet Fuser 220V Kit",
+    "confidence": 0.92,
+    "bbox_norm": [0.5, 0.5, 0.4, 0.2],
+    "compatibility": []
+  }]
 }
 ```
 
-| Field | Description |
-|---|---|
-| `image_base64` | Annotated image with bounding boxes (original if no detection) |
-| `conf` | List of YOLO confidence score (all bounding boxes) |
-| `cls` | List of part serial number |
-| `message` | List of part description |
+서버 좌표는 0~1 범위의 `[중심 x, 중심 y, 너비, 높이]`입니다. 화면은 왼쪽 위 기준으로 변환해 박스를 그립니다. 내보내기 JSON의 `bbox_norm_xywh`는 **왼쪽 위 기준**입니다.
 
-### `POST /classify`
+기존 API 호환을 위해 `image`, `conf`, `cls`, `desc`, `bboxes`도 반환합니다.
 
-Run inference on an uploaded image.
+## 검증
 
-**Request** — `multipart/form-data`
-
-| Field | Type | Description |
-|---|---|---|
-| `file` | file | Image file (JPEG, PNG, WEBP) |
-
-**Response**
-
-```json
-{
-  "image": "<base64-encoded JPEG with bounding boxes>"
-  "conf": "[0.98, 0.45]"
-  "cls": "[5RC00-67001, JC93-01467A]"
-  "desc": "[HP LaserJet ADF Maintenance Kit, Right door switch assembly]"
-}
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m unittest discover -s app -p test_integration.py
 ```
 
-| Field | Description |
-|---|---|
-| `image_base64` | Annotated image with bounding boxes (original if no detection) |
-| `conf` | List of YOLO confidence score (Top 5) |
-| `cls` | List of part serial number |
-| `message` | List of part description |
+확인한 항목:
 
-### `DELETE /admin/clear-db`
+- API 통합 테스트 4개 통과: 화면·카탈로그·인식 범위, 응답과 DB 저장, 잘못된 입력, 실제 모델 호출
+- JavaScript 문법과 응답 좌표 변환 검사 통과
+- 브라우저에서 카탈로그 40개 표시 확인
+- 브라우저에서 로고 이미지를 실제 모델에 전송하고 탐지 없음 안내 확인
 
-Delete all detection history — logs, bounding boxes, and saved result images. HP part data is preserved.
+양성 탐지의 좌표와 DB 대응은 고정된 테스트 출력으로 검사했습니다. 실제 부품 사진에 대한 정확도와 박스 위치의 육안 검증은 아직 남아 있습니다. 이 결과는 모델 정확도 평가가 아닙니다.
 
-```bash
-curl -X DELETE http://localhost:8000/admin/clear-db
-```
+## 현재 제한과 다음 작업
 
-**Response**
+- 프린터 모델별 호환 DB와 필터링은 미구현입니다.
+- Swin 분류 및 YOLO 영역 자르기 → Swin 연결은 미구현입니다.
+- History 화면은 브라우저 기록이며 서버 기록 조회 기능은 없습니다.
+- 수정 의견은 다운로드 JSON에만 저장되며 서버 저장·재학습은 미구현입니다.
+- 클래스 ID와 부품 번호의 대응은 원본 seed 데이터를 따릅니다. 정답 사진으로 확인해야 합니다.
+- 탐지 임계값은 0.05로 낮게 설정되어 있습니다. 낮은 신뢰도의 결과는 직접 검토해야 합니다.
+- 기존 관리 API에는 인증이 없습니다. 기본 실행 주소는 `127.0.0.1`이며 외부 서비스 공개 전 인증·접근 제어가 필요합니다.
+- 기존 Docker 구성과 학습 노트북은 보존했지만 이번 연결 작업에서 실행 검증하지 않았습니다.
 
-```json
-{
-  "message": "Detection history cleared. 12 result image(s) deleted. Parts are preserved."
-}
-```
+## 출처 및 라이선스
 
+- 기반 코드와 학습 모델: [snj0x03/PV-ML-HPPK](https://github.com/snj0x03/PV-ML-HPPK)
+- 프런트엔드: 프로젝트에서 제공받은 Kamero HTML을 기반으로 분리·연결
+- 이번 변경: API 응답 확장, DB 카탈로그 연결, 원본 이미지 전송, 입력 검증, UI 상태 처리, 실행 파일과 통합 테스트 추가
+- 원본의 MIT 라이선스 및 저작권 표기는 [LICENSE](LICENSE)에 유지했습니다.
+- 원본 README는 [docs/upstream-readme.md](docs/upstream-readme.md)에 보존했습니다. 현재 연결 버전의 사용법은 이 문서를 기준으로 합니다.
+- Ultralytics 등 외부 의존성과 로고·모델 등 자산의 이용 조건은 각 원출처를 따릅니다.
 
-## Database
-
-The SQLite database (`app/data/local.db`) contains four tables:
-
-| Table | Description |
-|---|---|
-| `parts` | 40 HP part entries (class_id, part_name, serial_number) |
-| `detection_logs` | One record per `/detect` call — image URL, JSON of {class, confidence, bbox} |
-| `classification_logs` | One record per `/classify` call — image URL, JSON of {class, confidence} |
-
-The database is created and seeded automatically on startup. No manual setup required.
-
-
-## Model
-
-`models/*.pt` are YOLO models trained on HP LaserJet printer part images. 
-
-- Inference threshold: `conf=0.05` (low threshold to maximize recall)
-- All detected bounding boxes are saved to DB; the highest-confidence box is shown in the UI
-- Result images (with bounding boxes drawn) are saved to `app/data/detection_images/`
-
-
-## Part Classes
-
-The model detects 40 HP LaserJet part classes (IDs 0–39).
-
-| Class ID | Part Name | Serial Number |
-|---|---|---|
-| 0 | SVC_HP LaserJet Fuser 220V Kit | 5PN77-67001 |
-| 1 | SVC_HP LaserJet CYM Managed Imaging Drum | W9078-67001 |
-| 2 | SVC_HP LaserJet Black Managed Imaging Drum | W9077-67001 |
-| 3 | SVC_HP LaserJet Toner Collection Unit | 6SB85-67001 |
-| 4 | Waste toner duct unit | JC96-13015A |
-| 5 | SVC_HP LaserJet Trays 2-x Roller Kit | 5PN66-67001 |
-| 6 | SVC_HP LaserJet Yellow Developer Unit | 5PN73-67003 |
-| 7 | Hard disk 500GB SED | 933853-011 |
-| 8 | HP LaserJet ADF Maintenance Kit | 5RC00-67001 |
-| 9 | Main PCA (Formatter) | 6CF14-67011 |
-| 10 | Laser scanner unit (LSU) | JC97-05149A |
-| 11 | Control panel (10.1 inch) | 5QK42-60104 |
-| 12 | SVC_T2 transfer assembly | 5PN80-67002 |
-| 13 | Low Voltage Power Supply (LVPS), 220V | JC44-00150C |
-| 14 | High Voltage Power Supply (HVPS) | JC44-00240C |
-| 15 | SVC_HPLJ 300ipm300shtFlw DADFhighspdScnr | 5QK39-67002 |
-| 16 | ADF Whole Unit Kit, Valiant A3 | 5QK08-67014 |
-| 17 | Fuser drive board (FDB), 220V | JC44-00236C |
-| 18 | SVC-Flat Cable, Faro SICB 50pin | 5QK08-67011 |
-| 19 | SVC-Flat Cable, Faro SICB 68pin | 5QK08-67012 |
-| 20 | FLAT CABLE-LSU | 5QK03-50003 |
-| 21 | Exit unit | JC90-01856A |
-| 22 | Right door assembly | JC95-02247A |
-| 23 | Front cover assembly | 6ER04-61001 |
-| 24 | Registration unit assembly | 8GS05-60128 |
-| 25 | Registration sensor | 0604-001381 |
-| 26 | Feed 2 sensor | 0604-001490 |
-| 27 | Fuser, Exit drive assembly | JC93-01850A |
-| 28 | Drum, ITB motor | JC31-00123C |
-| 29 | Reservoir drive motor | JC93-01659A |
-| 30 | Tray 3 empty sensor | 3SJ00-60110 |
-| 31 | Duplex 1 motor | JC93-00336A |
-| 32 | Toner dispense motor | SS216-80501 |
-| 33 | CPR shutter motor | JC31-00078A |
-| 34 | LVPS fan | JC31-00198A |
-| 35 | FDB fan | JC31-00154A |
-| 36 | LSU fan assembly | JC93-01019A |
-| 37 | Right door switch assembly | JC93-01467A |
-| 38 | Front door switch assembly | JC93-00466A |
-| 39 | Outer environment sensor assembly | 5QJ90-40002 |
+자세한 구현 설명은 [연결설명.md](연결설명.md)를 참고하세요.

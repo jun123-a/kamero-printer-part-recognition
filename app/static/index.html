@@ -1,229 +1,64 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HP Parts Recognition AI System</title>
-    <link rel="stylesheet" href="/static/style.css"> 
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kamero — Printer Part Recognition</title>
+<link rel="stylesheet" href="/static/kamero.css">
 </head>
 <body>
+<header>
+  <img src="/static/hp_logo.png" alt="HP" onerror="this.remove()">
+  <img src="/static/woosong_logo.png" alt="Woosong University" onerror="this.remove()">
+  <span class="mark">Kamero</span><span class="tag">Printer part recognition</span>
+  <span class="dot" id="dot" title="Server status"></span>
+</header>
+<nav class="tabs" id="tabs"><button data-v="rec" class="on">Recognize</button><button data-v="cat">Parts catalogue</button><button data-v="his">History</button></nav>
+<main>
+  <div id="v-rec">
+  <div id="demo" hidden>Demo mode — results are simulated and no server is called.</div>
+  <ol class="steps" id="steps"><li>Choose scope</li><li>Upload image</li><li>Recognize</li><li>Review parts</li><li>Export</li></ol>
 
-    <header>
-        <div class="header-inner">
-            <div class="logo">
-                <img src="/static/hp_logo.png" alt="HP" class="logo-img-hp">
-                <div class="logo-divider"></div>
-                <img src="/static/woosong_logo.png" alt="Woosong University" class="logo-img-woosong">
-            </div>
-            <span class="header-badge">BETA</span>
-        </div>
-    </header>
+  <section class="card">
+    <label for="model">Recognition scope</label>
+    <select id="model"><option value="">Select a recognition scope…</option></select>
+    <div class="err" id="merr"></div>
+    <div class="drop" id="drop">
+      <p><strong id="dl">Drag and drop a printer photo here</strong></p>
+      <p>JPG or PNG, up to 10 MB</p>
+      <div class="row" style="justify-content:center;margin-top:8px">
+        <button type="button" id="browse">Browse files</button>
+        <button type="button" id="shoot">Take photo</button>
+      </div>
+      <input type="file" id="f1" accept="image/jpeg,image/png">
+      <input type="file" id="f2" accept="image/jpeg,image/png" capture="environment">
+      <img id="pv" alt="Selected photo" hidden>
+    </div>
+    <div class="err" id="ferr"></div>
+    <div class="row">
+      <button class="p" id="go">Start recognition</button>
+      <button id="reset" hidden>Start over</button>
+    </div>
+  </section>
 
-    <main>
-        <div class="container">
+  <div id="msg" role="status" aria-live="polite"></div>
 
-            <div class="hero">
-                <h1>Printer Parts Identification System</h1>
-                <p class="subtitle">Upload an image and our AI will automatically identify the part</p>
-            </div>
+  <section id="results" hidden>
+    <div class="grid">
+      <div><div class="zoom"><button id="zo" aria-label="Zoom out">−</button><button id="zi" aria-label="Zoom in">+</button><button id="zr">Fit</button></div><div class="stage"><canvas id="cv"></canvas></div><p class="meta" id="meta"></p></div>
+      <div>
+        <h2 id="count"></h2>
+        <div id="list"></div>
+        <div class="detail" id="detail"></div>
+        <div class="row"><button class="p" id="exp">Download results (.zip)</button></div>
+      </div>
+    </div>
+  </section>
+  </div>
+  <section id="v-cat" hidden><h2>Supported parts</h2><input id="q" type="search" placeholder="Search part number or description" aria-label="Search parts"><p class="meta" id="cn"></p><div id="clist"></div></section>
+  <section id="v-his" hidden><div class="row" style="justify-content:space-between;margin:0 0 10px"><h2 style="margin:0">Recent recognitions (this device)</h2><button id="hclr">Clear history</button></div><div id="hlist"></div></section>
+</main>
 
-            <div class="card">
-                <div class="card-title">Upload Image</div>
-                <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
-                    <svg id="uploadIcon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                        <circle cx="8.5" cy="8.5" r="1.5"/>
-                        <polyline points="21 15 16 10 5 21"/>
-                    </svg>
-                    <div class="upload-label" id="dropText">Drag & drop or click to upload an image</div>
-                    <div class="upload-hint" id="uploadHint">Supports JPG, PNG, WEBP</div>
-                    <div class="file-name" id="fileName"></div>
-                    <img id="imagePreview" alt="Part image" style="max-width:100%; max-height:280px; object-fit:contain; display:none; margin-top:1rem; border-radius:8px;">
-                    <input type="file" id="fileInput" accept="image/*" style="display:none;">
-                </div>
-		<button class="btn btn-primary" id="analyzeBtn" onclick="AnalyzeDetection()">
-		    <span id="btnText">Start Detection</span>
-		    <div class="spinner" id="spinner"></div>
-		</button>
-		<button class="btn btn-primary" id="analyzeClsBtn" onclick="AnalyzeClassification()">
-		    <span id="btnText2">Start Classification</span>
-		    <div class="spinner" id="spinner2"></div>
-		</button>
-            </div>
-
-            <div class="card result-card" id="resultCard">
-                <div class="result-header">
-                    <h2 id="res"></h2>
-                </div>
-                <div class="result-grid" id="resultList">
-                </div>
-            </div>
-
-        </div>
-    </main>
-
-    <footer>
-        <strong>HP</strong> Parts Recognition AI &nbsp;·&nbsp; YOLOv11 &nbsp;·&nbsp; Powered by Woosong University
-    </footer>
-
-    <script>
-        const dropZone     = document.getElementById('dropZone');
-        const fileInput    = document.getElementById('fileInput');
-        const dropText     = document.getElementById('dropText');
-        const uploadHint   = document.getElementById('uploadHint');
-        const uploadIcon   = document.getElementById('uploadIcon');
-        const fileName     = document.getElementById('fileName');
-        const imagePreview = document.getElementById('imagePreview');
-        const resultCard   = document.getElementById('resultCard');
-        const analyzeBtn   = document.getElementById('analyzeBtn');
-        const spinner      = document.getElementById('spinner');
-        const btnText      = document.getElementById('btnText');
-	const container = document.getElementById('resultList');
-	const res = document.getElementById('res');
-        const analyzeClsBtn   = document.getElementById('analyzeClsBtn');
-        const btnText2      = document.getElementById('btnText2');
-        const spinner2      = document.getElementById('spinner2');
-
-        let selectedFile    = null;
-        let lastDetectionId = null;
-
-        ['dragenter', 'dragover'].forEach(evt => {
-            dropZone.addEventListener(evt, e => {
-                e.preventDefault();
-                dropZone.classList.add('drag-over');
-            }, false);
-        });
-
-        ['dragleave', 'drop'].forEach(evt => {
-            dropZone.addEventListener(evt, e => {
-                e.preventDefault();
-                dropZone.classList.remove('drag-over');
-            }, false);
-        });
-
-        dropZone.addEventListener('drop', e => {
-            const files = e.dataTransfer.files;
-            if (files.length > 0) handleFile(files[0]);
-        });
-
-        fileInput.addEventListener('change', () => {
-            if (fileInput.files.length > 0) handleFile(fileInput.files[0]);
-        });
-
-        function handleFile(file) {
-            selectedFile = file;
-            dropText.style.display   = 'none';
-            uploadHint.style.display = 'none';
-            uploadIcon.style.display = 'none';
-            fileName.style.display   = 'none';
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onloadend = () => {
-                imagePreview.src = reader.result;
-                imagePreview.style.display = 'block';
-            };
-        }
-
-        function setLoading(on) {
-            analyzeBtn.disabled = on;
-            spinner.style.display = on ? 'block' : 'none';
-            btnText.textContent = on ? 'Analyzing...' : 'Start Detection';
-        }
-
-        function setLoading2(on) {
-            analyzeClsBtn.disabled = on;
-            spinner2.style.display = on ? 'block' : 'none';
-            btnText2.textContent = on ? 'Analyzing...' : 'Start Classification';
-        }
-
-        async function AnalyzeDetection() {
-            if (!selectedFile) {
-                alert('Please upload an image first.');
-                return;
-            }
-
-            setLoading(true);
-            resultCard.style.display = 'block';
-
-            const formData = new FormData();
-            formData.append('file', selectedFile);
-
-            try {
-                const response = await fetch('/detect', { method: 'POST', body: formData });
-                const data = await response.json();
-		
-		console.log(data);
-		res.textContent = "Detection Results";
-
-		container.textContent = "";
-		for(let i = 0; i < data.conf.length; i++) {
-		    const formattedString = `
-			<div class="result-row">
-		            <span class="result-value">${(100*data.conf[i]).toFixed(2)}%</span>
-			    <span class="result-value mono">${data.cls[i]}</span>
-			    <span>${data.desc[i]}</span>
-			</div>
-		    `;
-		    container.insertAdjacentHTML("beforeend", formattedString);
-		}
-
-		if (data.image) {
-                    imagePreview.src = 'data:image/jpeg;base64,' + data.image;
-                    imagePreview.style.display = 'block';
-                }
-            } catch (error) {
-                alert('A server error occurred. Please try again.');
-                console.error(error);
-            } finally {
-                setLoading(false);
-            }
-        }
-
-	
-        async function AnalyzeClassification() {
-            if (!selectedFile) {
-                alert('Please upload an image first.');
-                return;
-            }
-
-            setLoading2(true);
-            resultCard.style.display = 'block';
-
-            const formData = new FormData();
-            formData.append('file', selectedFile);
-
-            try {
-                const response = await fetch('/classify', { method: 'POST', body: formData });
-                const data = await response.json();
-		
-		console.log(data);
-
-		res.textContent = "Classification Results (Top 5)";
-
-		container.textContent = "";
-
-		for(let i = 0; i < data.conf.length; i++) {
-		    const formattedString = `
-			<div class="result-row">
-		            <span class="result-value">${(100*data.conf[i]).toFixed(2)}%</span>
-			    <span class="result-value mono">${data.cls[i]}</span>
-			    <span>${data.desc[i]}</span>
-			</div>
-		    `;
-		    container.insertAdjacentHTML("beforeend", formattedString);
-		}
-
-		if (data.image) {
-                    imagePreview.src = 'data:image/jpeg;base64,' + data.image;
-                    imagePreview.style.display = 'block';
-                }
-            } catch (error) {
-                alert('A server error occurred. Please try again.');
-                console.error(error);
-            } finally {
-                setLoading2(false);
-            }
-        }
-    </script>
+<script src="/static/kamero.js" defer></script>
 </body>
 </html>
