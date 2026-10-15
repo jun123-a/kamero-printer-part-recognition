@@ -2,11 +2,11 @@
 
 ## 공개 조회 화면 / Public viewer
 
-사용자가 전체 공개를 승인하여 [공개 페이지](https://jun123-a.github.io/kamero-printer-part-recognition/)를 추가했습니다. 영어는 주소 끝에 `?lang=en`을 붙입니다. 공개 스냅샷 `docs/catalogue.json`에는 부품 정보와 영상별 Drive 링크가 포함됩니다. 아래의 비공개 목록 설명은 원래 수집한 원본 inventory와 로컬 DB를 뜻하며, 화면에 필요한 메타데이터는 이제 공개됩니다. Drive 자체의 영상 접근 권한은 변경하지 않았습니다.
+보안 검토 후 [공개 페이지](https://jun123-a.github.io/kamero-printer-part-recognition/)는 **31개 부품 순번·SVC 번호·설명만** 제공합니다. 영어는 주소 끝에 `?lang=en`을 붙입니다. 공개 JSON에서도 영상 파일명·폴더명·크기·Drive 링크를 제거했습니다. 영상 조회는 로컬 앱에만 남아 있으며, 인증된 팀원용 웹서비스는 아직 배포하지 않았습니다.
 
-The user approved public access to the catalogue, including video links. The public static snapshot is in `docs/catalogue.json`; the original inventory, database and media remain excluded. Drive access permissions are unchanged. Recognition and uploads are available only in the local app.
+The public snapshot now contains only part numbers, SVC numbers and descriptions. Video metadata and source links have been removed from the current public files. The local app retains video browsing. A team-authenticated video service has not been deployed. Previously published links may remain in Git history or copies; removing them from the current site does not revoke Drive access.
 
-DB 수정 후 `.venv\Scripts\python.exe app/export_public_catalog.py`로 공개 스냅샷을 다시 생성하고 `docs/` 변경을 main에 올리면 됩니다. 공개 화면은 실시간 DB가 아닌 마지막 내보내기 시점의 목록입니다.
+부품표 수정 후 `.venv\Scripts\python.exe app/export_public_catalog.py`로 공개 스냅샷을 다시 생성하고 `docs/` 변경을 main에 올리면 됩니다. 내보내기는 허용된 부품 필드만 복사하며 DB의 영상 정보를 읽지 않습니다. 이전에 공개한 링크는 Git 기록이나 복사본에 남을 수 있으므로 Drive 권한 제한은 별도로 필요합니다.
 
 ## 등록한 내용
 
