@@ -2,6 +2,8 @@
 
 ## 공개 조회 화면 / Public viewer
 
+공개 주소의 첫 화면은 이제 메인 프런트엔드입니다. 데이터셋 조회는 **E783 dataset** 탭 또는 `datasets.html`에서 열립니다. 영어 데이터셋 주소는 `datasets.html?lang=en`입니다. 공개 메인 화면의 사진 업로드·AI 인식은 서버 미연결 상태로 비활성화되어 있습니다.
+
 사용자 요청에 따라 [공개 페이지](https://jun123-a.github.io/kamero-printer-part-recognition/)를 로컬 데이터셋 화면과 같은 영상 조회 방식으로 복원했습니다. **31개 부품과 538개 영상 항목**, 부품별 필터, 파일명·폴더·크기·Drive 링크를 제공합니다. 영어는 주소 끝에 `?lang=en`을 붙입니다. 공개 JSON에도 이 영상 정보가 포함되며 누구나 내려받을 수 있습니다. Drive 공유 권한은 변경하지 않았습니다.
 
 At the user's request, the public viewer again includes 31 parts and 538 video entries, part filtering, filenames, folders, sizes and Drive links. These fields are available in the public JSON snapshot. Drive permissions are unchanged. The local app reads SQLite through FastAPI; the public site reads exported JSON and does not connect to the local database.

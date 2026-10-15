@@ -1,5 +1,11 @@
 # Frontend Integration Guide — E783 Dataset
 
+## Public main frontend
+
+The repository's GitHub Pages root now serves the main frontend. It includes Model parts, E783 dataset and device-local History tabs. The dataset viewer is at `datasets.html?lang=en`. In the public build, `data-public="true"` enables static mode: model parts come from `model-parts.json`, and photo upload and inference are disabled with an explicit notice. No inference API or localhost requests are made. This is not a deployment of the Python backend. The local frontend retains normal recognition.
+
+Generate both public views with `app/export_public_catalog.py`. It copies the shared frontend files and exports only catalogue data, not recognition history.
+
 ## What has been connected
 
 The existing Kamero frontend now includes an **E783 dataset** tab alongside Recognize, Model parts (40), and History. The tab loads the existing dataset viewer inside a same-origin iframe. This reuses the working filtering, pagination, language switching, and Drive-link handling without duplicating its code or conflicting with the recognition page's DOM IDs.

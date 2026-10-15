@@ -1,6 +1,6 @@
 
 /* ---------- Config ---------- */
-const CFG={API:"",DETECT:"/detect",MODELS:"/api/models",HEALTH:"/api/health",
+const CFG={PUBLIC:document.documentElement.dataset.public==="true",API:"",DETECT:"/detect",MODELS:"/api/models",HEALTH:"/api/health",
   MAX_BYTES:10*1024*1024,   // M-IN.2 — confirm the agreed maximum
   MAX_SIDE:1280,            // photos are downscaled before upload to protect the 3 s target
   LOW:0.6,                  // M-DC.6 low-confidence threshold
@@ -23,6 +23,14 @@ function loadImg(src){return new Promise((ok,no)=>{const i=new Image();i.onload=
 (async()=>{
   try{
     let models=PLACEHOLDER_MODELS;
+    if(CFG.PUBLIC){
+      const response=await fetch("./model-parts.json");
+      if(!response.ok)throw new Error("Could not load model parts.");
+      const data=await response.json();
+      PARTS.splice(0,PARTS.length,...data.parts.map(p=>[p.part_number,"",p.description]));
+      $("model").replaceChildren(new Option("Recognition server not connected",""));
+      return;
+    }
     if(!CFG.DEMO){
       const r=await fetch(CFG.API+CFG.MODELS);if(!r.ok)throw new Error("Could not load recognition scopes.");
       models=(await r.json()).models;
@@ -33,7 +41,13 @@ function loadImg(src){return new Promise((ok,no)=>{const i=new Image();i.onload=
     if(models.length===1){$("model").value=models[0];sync();}
   }catch(e){banner("err",e.message+" Please restart the server and refresh this page.");}
 })();
-if(CFG.DEMO)$("demo").hidden=false;
+if(CFG.PUBLIC){
+  banner("info","Public preview: browse model parts and the E783 dataset. Photo upload and AI recognition are unavailable because no inference server is connected.");
+  ["model","browse","shoot","go","f1","f2"].forEach(id=>$(id).disabled=true);
+  $("go").textContent="Recognition unavailable";
+  $("dot").className="dot off";$("dot").title="No inference server connected";
+}
+else if(CFG.DEMO)$("demo").hidden=false;
 else fetch(CFG.API+CFG.HEALTH).then(r=>{$("dot").className=r.ok?"dot on":"dot off";}).catch(()=>{$("dot").className="dot off";});
 $("model").addEventListener("change",()=>{$("merr").textContent="";sync();});
 
@@ -52,6 +66,7 @@ async function prepare(file){   // downscale + fix phone EXIF rotation by redraw
   return{canvas:c,blob:await new Promise(r=>c.toBlob(r,"image/jpeg",0.92))};
 }
 async function setFile(f){
+  if(CFG.PUBLIC)return;
   if(working)return;
   $("ferr").textContent="";
   if(!["image/jpeg","image/png"].includes(f.type)){$("ferr").textContent="Unsupported file type. Please upload a JPG or PNG image.";return;}
@@ -84,6 +99,7 @@ function demo(){return{version:"demo",parts:[
   {cls:"933853-011",num:"933853-011",desc:"Hard disk 500GB SED",conf:.81,box:[.55,.48,.32,.3]},
   {cls:"6CF14-67011",num:"6CF14-67011",desc:"Main PCA (Formatter)",conf:.46,box:[.12,.6,.3,.3]}]};}
 async function callApi(blob,name,model){
+  if(CFG.PUBLIC)throw new Error("No inference server is connected.");
   if(CFG.DEMO){await sleep(700);return demo();}
   const fd=new FormData();fd.append("file",blob,name);fd.append("printer_model",model);
   const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),CFG.TIMEOUT);
