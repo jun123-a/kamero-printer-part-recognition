@@ -2,6 +2,8 @@
 
 [한국어](readme.md) | **English**
 
+[Public dataset viewer](https://jun123-a.github.io/kamero-printer-part-recognition/?lang=en) · [한국어 화면](https://jun123-a.github.io/kamero-printer-part-recognition/)
+
 A capstone project that detects printer parts in uploaded photos using an existing YOLO model, looks up part numbers and descriptions in SQLite, and displays the results in a browser.
 
 This project connects the supplied Kamero frontend to [PV-ML-HPPK](https://github.com/snj0x03/PV-ML-HPPK). It is currently a **prototype for local use**.

@@ -1,5 +1,13 @@
 # E783 데이터셋 DB / Dataset database
 
+## 공개 조회 화면 / Public viewer
+
+사용자가 전체 공개를 승인하여 [공개 페이지](https://jun123-a.github.io/kamero-printer-part-recognition/)를 추가했습니다. 영어는 주소 끝에 `?lang=en`을 붙입니다. 공개 스냅샷 `docs/catalogue.json`에는 부품 정보와 영상별 Drive 링크가 포함됩니다. 아래의 비공개 목록 설명은 원래 수집한 원본 inventory와 로컬 DB를 뜻하며, 화면에 필요한 메타데이터는 이제 공개됩니다. Drive 자체의 영상 접근 권한은 변경하지 않았습니다.
+
+The user approved public access to the catalogue, including video links. The public static snapshot is in `docs/catalogue.json`; the original inventory, database and media remain excluded. Drive access permissions are unchanged. Recognition and uploads are available only in the local app.
+
+DB 수정 후 `.venv\Scripts\python.exe app/export_public_catalog.py`로 공개 스냅샷을 다시 생성하고 `docs/` 변경을 main에 올리면 됩니다. 공개 화면은 실시간 DB가 아닌 마지막 내보내기 시점의 목록입니다.
+
 ## 등록한 내용
 
 2026-10-15 제공된 Drive 목록과 사용자 제공 **E783_Component_Part_Information - Sheet1.pdf** 1–2쪽을 기준으로 정리했습니다.

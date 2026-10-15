@@ -10,6 +10,7 @@ const words = english
 const el = id => document.getElementById(id);
 let offset = 0, total = 0, requestVersion = 0;
 async function get(url) {
+  if (window.publicCatalogueGet) return window.publicCatalogueGet(url);
   const response = await fetch(url);
   if (!response.ok) throw new Error(words.error + response.status);
   return response.json();
