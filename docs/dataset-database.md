@@ -2,11 +2,11 @@
 
 ## 공개 조회 화면 / Public viewer
 
-보안 검토 후 [공개 페이지](https://jun123-a.github.io/kamero-printer-part-recognition/)는 **31개 부품 순번·SVC 번호·설명만** 제공합니다. 영어는 주소 끝에 `?lang=en`을 붙입니다. 공개 JSON에서도 영상 파일명·폴더명·크기·Drive 링크를 제거했습니다. 영상 조회는 로컬 앱에만 남아 있으며, 인증된 팀원용 웹서비스는 아직 배포하지 않았습니다.
+사용자 요청에 따라 [공개 페이지](https://jun123-a.github.io/kamero-printer-part-recognition/)를 로컬 데이터셋 화면과 같은 영상 조회 방식으로 복원했습니다. **31개 부품과 538개 영상 항목**, 부품별 필터, 파일명·폴더·크기·Drive 링크를 제공합니다. 영어는 주소 끝에 `?lang=en`을 붙입니다. 공개 JSON에도 이 영상 정보가 포함되며 누구나 내려받을 수 있습니다. Drive 공유 권한은 변경하지 않았습니다.
 
-The public snapshot now contains only part numbers, SVC numbers and descriptions. Video metadata and source links have been removed from the current public files. The local app retains video browsing. A team-authenticated video service has not been deployed. Previously published links may remain in Git history or copies; removing them from the current site does not revoke Drive access.
+At the user's request, the public viewer again includes 31 parts and 538 video entries, part filtering, filenames, folders, sizes and Drive links. These fields are available in the public JSON snapshot. Drive permissions are unchanged. The local app reads SQLite through FastAPI; the public site reads exported JSON and does not connect to the local database.
 
-부품표 수정 후 `.venv\Scripts\python.exe app/export_public_catalog.py`로 공개 스냅샷을 다시 생성하고 `docs/` 변경을 main에 올리면 됩니다. 내보내기는 허용된 부품 필드만 복사하며 DB의 영상 정보를 읽지 않습니다. 이전에 공개한 링크는 Git 기록이나 복사본에 남을 수 있으므로 Drive 권한 제한은 별도로 필요합니다.
+로컬 원본 저장소는 SQLAlchemy로 관리하는 SQLite DB(`app/data/local.db`)입니다. 공개 사이트는 여기서 내보낸 `docs/catalogue.json`을 JavaScript로 읽습니다. JSON은 DB 자체가 아니라 공개용 복사본입니다. DB 갱신 후 `.venv\Scripts\python.exe app/export_public_catalog.py`를 실행하고 `docs/` 변경을 main에 올려야 공개 화면에도 반영됩니다. 영상 원본은 JSON에 들어 있지 않고 Drive에 있습니다.
 
 ## 등록한 내용
 

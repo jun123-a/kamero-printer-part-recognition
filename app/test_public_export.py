@@ -1,18 +1,19 @@
 import json
 import unittest
 from pathlib import Path
-from export_public_catalog import export
 
 
 class PublicExportTests(unittest.TestCase):
-    def test_export_contains_only_parts(self):
-        export()
+    def test_public_snapshot_contract(self):
         root = Path(__file__).resolve().parent.parent
         data = json.loads((root / "docs/catalogue.json").read_text(encoding="utf-8"))
-        self.assertEqual(set(data), {"parts"})
-        self.assertEqual(len(data["parts"]), 31)
-        for part in data["parts"]:
-            self.assertEqual(set(part), {"part_no", "svc_number", "description"})
-        text = json.dumps(data)
-        self.assertNotIn("drive.google.com", text)
-        self.assertNotIn(".mp4", text)
+        self.assertEqual(set(data), {"datasets", "details"})
+        for dataset in data["datasets"]:
+            detail = data["details"][str(dataset["id"])]
+            self.assertEqual(len(detail["parts"]), detail["summary"]["parts"])
+            self.assertEqual(len(detail["assets"]), detail["summary"]["files"])
+            known = {p["part_no"] for p in detail["parts"]}
+            for asset in detail["assets"]:
+                self.assertEqual(set(asset), {"name", "folder", "size_bytes", "source_url", "parts"})
+                self.assertTrue(asset["source_url"].startswith("https://drive.google.com/"))
+                self.assertTrue({p["part_no"] for p in asset["parts"]} <= known)
