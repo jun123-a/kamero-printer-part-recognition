@@ -2,6 +2,8 @@
 
 [한국어](readme.md) | **English**
 
+[Frontend developer integration guide](docs/frontend-integration.en.md) — embedded E783 dataset tab, API contract, JSON format, local setup and model integration boundaries.
+
 [Public dataset viewer](https://jun123-a.github.io/kamero-printer-part-recognition/?lang=en) · [한국어 화면](https://jun123-a.github.io/kamero-printer-part-recognition/)
 
 A capstone project that detects printer parts in uploaded photos using an existing YOLO model, looks up part numbers and descriptions in SQLite, and displays the results in a browser.

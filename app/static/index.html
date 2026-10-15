@@ -14,7 +14,7 @@
   <span class="dot" id="dot" title="Server status"></span>
   <a href="/datasets" style="margin-left:auto;color:inherit">E783 dataset</a>
 </header>
-<nav class="tabs" id="tabs"><button data-v="rec" class="on">Recognize</button><button data-v="cat">Parts catalogue</button><button data-v="his">History</button></nav>
+<nav class="tabs" id="tabs"><button data-v="rec" class="on">Recognize</button><button data-v="cat">Model parts (40)</button><button data-v="dataset">E783 dataset</button><button data-v="his">History</button></nav>
 <main>
   <div id="v-rec">
   <div id="demo" hidden>Demo mode — results are simulated and no server is called.</div>
@@ -58,8 +58,14 @@
   </div>
   <section id="v-cat" hidden><h2>Supported parts</h2><input id="q" type="search" placeholder="Search part number or description" aria-label="Search parts"><p class="meta" id="cn"></p><div id="clist"></div></section>
   <section id="v-his" hidden><div class="row" style="justify-content:space-between;margin:0 0 10px"><h2 style="margin:0">Recent recognitions (this device)</h2><button id="hclr">Clear history</button></div><div id="hlist"></div></section>
+  <section id="v-dataset" hidden>
+    <h2>E783 source dataset</h2>
+    <p class="meta">Browse the 31-part source dataset and its videos. These part numbers are separate from the current recognition model's 40 classes; selecting a dataset part does not change recognition.</p>
+    <p><a href="/datasets?lang=en" target="_blank" rel="noopener noreferrer">Open dataset in a new tab</a> · <a href="https://jun123-a.github.io/kamero-printer-part-recognition/?lang=en" target="_blank" rel="noopener noreferrer">Public snapshot</a></p>
+    <iframe id="dataset-frame" title="E783 parts and source videos" data-src="/datasets?lang=en" style="width:100%;height:78vh;min-height:480px;border:1px solid #DCD9CE;border-radius:10px"></iframe>
+  </section>
 </main>
 
-<script src="/static/kamero.js" defer></script>
+<script src="/static/kamero.js?v=dataset-tab-1" defer></script>
 </body>
 </html>

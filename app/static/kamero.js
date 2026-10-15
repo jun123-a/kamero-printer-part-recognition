@@ -181,7 +181,11 @@ $("reset").onclick=()=>{if(working)return;S.file=S.prep=null;S.parts=[];["f1","f
 /* ---------- Expansion: tabs, catalogue, history, feedback, zoom ---------- */
 document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>{
   document.querySelectorAll("#tabs button").forEach(x=>x.classList.toggle("on",x===b));
-  ["rec","cat","his"].forEach(v=>$("v-"+v).hidden=v!==b.dataset.v);
+  ["rec","cat","his","dataset"].forEach(v=>$("v-"+v).hidden=v!==b.dataset.v);
+  if(b.dataset.v==="dataset"){
+    const frame=$("dataset-frame");
+    if(!frame.getAttribute("src"))frame.src=frame.dataset.src;
+  }
   if(b.dataset.v==="cat")renderCat();if(b.dataset.v==="his")renderHistory();});
 function renderCat(){
   const q=$("q").value.trim().toLowerCase(),L=$("clist"),hit=PARTS.filter(x=>!q||x.join(" ").toLowerCase().includes(q));L.replaceChildren();

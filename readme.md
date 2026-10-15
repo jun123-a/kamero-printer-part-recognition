@@ -2,6 +2,8 @@
 
 **한국어** | [English](README.en.md)
 
+[프런트엔드 개발자용 영어 연동 설명서](docs/frontend-integration.en.md) — E783 탭, API, JSON 구조, 실행 방법과 모델 연동 범위.
+
 [공개 데이터셋 조회 화면](https://jun123-a.github.io/kamero-printer-part-recognition/) · [English viewer](https://jun123-a.github.io/kamero-printer-part-recognition/?lang=en)
 
 사진을 업로드하면 기존 YOLO 모델이 프린터 부품을 탐지하고, SQLite에서 부품 번호와 설명을 찾아 화면에 표시하는 캡스톤 프로젝트입니다.
