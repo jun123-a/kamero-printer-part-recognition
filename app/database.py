@@ -1,6 +1,7 @@
 import os
 from datetime import datetime
-from sqlalchemy import create_engine, Column, Integer, String, DateTime 
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, event
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import declarative_base, sessionmaker, mapped_column
 from sqlalchemy.dialects.sqlite import JSON 
 
@@ -10,6 +11,13 @@ os.makedirs(DATA_DIR, exist_ok=True)
 
 DB_PATH = os.path.join(DATA_DIR, "local.db")
 DB_URL = f"sqlite:///{DB_PATH}"
+
+@event.listens_for(Engine, "connect")
+def sqlite_foreign_keys(connection, record):
+    import sqlite3
+    if isinstance(connection, sqlite3.Connection):
+        connection.execute("PRAGMA foreign_keys=ON")
+
 
 engine = create_engine(DB_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -41,6 +49,7 @@ class ClassificationLog(Base):
 
 
 def init_db():
+    import dataset_catalog  # Register additive dataset tables; legacy catalogue stays separate.
     Base.metadata.create_all(bind=engine)
 
 

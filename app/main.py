@@ -22,6 +22,8 @@ from database import (
 )
 
 app = FastAPI()
+from dataset_api import router as dataset_router
+app.include_router(dataset_router)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -85,6 +87,11 @@ def catalogue(db: Session = Depends(get_db)):
 @app.get("/")
 async def main_page():
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+
+
+@app.get("/datasets")
+def dataset_page():
+    return FileResponse(os.path.join(STATIC_DIR, "datasets.html"))
 
 
 @app.post("/detect")

@@ -8,6 +8,8 @@ This project connects the supplied Kamero frontend to [PV-ML-HPPK](https://githu
 
 ## Features
 
+- **E783 dataset database**: 31 document-mapped parts and Drive video metadata, kept separate from the legacy 40-class model catalogue. See the [setup and schema guide](docs/dataset-database.md). Open `/datasets` after importing your inventory.
+
 - JPG/PNG uploads and real YOLO inference
 - Linked selection between bounding boxes and the parts list, with zoom controls
 - Warnings for predictions with confidence below 60%
